@@ -52,6 +52,9 @@ coverage.xml
 
 # Django stuff:
 *.log
+.static_storage/
+/media
+/staticfiles
 local_settings.py
 
 # Flask stuff:
