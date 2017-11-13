@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from TodoListApi.models import UserTodo,TodoList,LogUser
+from TodoListApi.models import UserTodo,TodoList,LogUser,ListContent
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,3 +17,22 @@ class UserTodoSerializer(serializers.ModelSerializer):
         model = UserTodo
         #fields = ('id','user','type_user',)
         fields =('id','username','first_name','last_name', 'email','type_user')
+
+class ListContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= ListContent
+        fields= '__all__'
+
+class TodoListSerializer(serializers.ModelSerializer):
+    user = UserTodoSerializer(read_only=True)
+    #image = serializers.SerializerMethodField('get_image_url')
+    todolistcontent = ListContentSerializer(many=True)
+    class Meta:
+        model = TodoList
+        fields = ('id','user','title','description','todolistcontent','image',)
+
+    def get_image_url(self, sliderimage):
+        request = self.context.get('request')
+        image = sliderimage.image.url
+        return request.build_absolute_uri(image)
+

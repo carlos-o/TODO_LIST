@@ -14,8 +14,8 @@ from rest_framework import authentication, permissions
 from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from rest_framework.response import Response
 from rest_framework import status
-from .models import UserTodo,TodoList,LogUser
-from .serializers import UserTodoSerializer#, TodoListSerializer, LogUserSerializer 
+from .models import UserTodo,TodoList,LogUser,ListContent
+from .serializers import UserTodoSerializer, TodoListSerializer, ListContentSerializer#, LogUserSerializer 
 import datetime
 import time
 import random
@@ -147,6 +147,100 @@ class RecoverAndChangePasswordView(APIView):
         else:
             data['response']='the password you entered is incorrect'
             return Response(data, status=STATUS_400)
+
+class ListContentView(APIView):
+     permission_classes = (permissions.AllowAny,)
+     def get(self, request):
+         lists = ListContent.objects.all()
+         serializer = ListContentSerializer(lists, many=True)
+         return Response(serializer.data)
+
+class TodoListView(APIView):
+    permission_classes = (permissions.AllowAny,)
+    def get(self, request):
+        todolist = TodoList.objects.all()
+        serializer = TodoListSerializer(todolist,many=True)
+        return Response(serializer.data)
+
+class TodoListDetailView(APIView):
+    permission_classes = (IsAuthenticated, )
+    authentication_classes = (JSONWebTokenAuthentication, )
+    def get_object(self, pk):
+        try:
+            return TodoList.objects.get(pk=pk)
+        except TodoList.DoesNotExist:
+            raise Http404
+
+    def validate_params(self, todo_pk):
+        if(todo_pk!=None):
+            if(re.match(r"[0-9]+$",todo_pk)):
+                todolist = self.get_object(todo_pk)
+                return todolist
+            else:
+                return ({'response':'pk it can only be numbers','status':STATUS_400})
+        else:
+            return ({'response':'I need param for url','status':STATUS_202})
+
+    def get(self, request):
+        pk = request.GET.get('pk')
+        todolist = self.validate_params(pk)
+        if isinstance(todolist, dict):
+            return Response({'response':todolist.get('response')},status=todolist.get('status'))
+        serializer = TodoListSerializer(todolist)
+        return Response(serializer.data)
+
+    def post(self, request):
+        title = request.data.get('title')
+        description =request.data.get('description')
+        listcontent = request.data.get('listcontent')
+        user = User.objects.get(pk=request.user.id)
+        try:
+            userdata = UserTodo.objects.get(user=user)
+            todolist = TodoList.objects.create(user=userdata,title=title,description=description)
+            todolist.save()
+            for x in range(len(listcontent)):
+                listdata = listcontent[x]
+                content = ListContent.objects.create(todolist=todolist,description=listdata)
+                content.save()
+            serializer= TodoListSerializer(todolist)
+            return Response(serializer.data, status=STATUS_201)
+        except:
+            return Response({'response':'error'}, status=STATUS_400)
+        
+    def put(self, request):
+        pk = request.GET.get('pk')
+        todolist = self.validate_params(pk)
+        if isinstance(todolist, dict):
+            return Response({'response':todolist.get('response')},status=todolist.get('status'))
+        title = request.data.get('title')
+        description = request.data.get('description')
+        listcontent = request.data.get('listcontent')
+        try:
+            time = datetime.datetime.now()
+            if(title==None or title==""):
+                todolist.title=title
+            if(description==None or description==""):
+                todolist.description = description
+            todolist.modified = time
+            todolist.save()
+            for x in range(len(listcontent)):
+                listdata = ListContent.objects.get(pk=listcontent[x].get('id'))
+                if(listdata!=None):
+                    listdata.description=listcontent[x].get('description')
+                    listdata.modified= time
+                    listdata.save()
+            serializer= TodoListSerializer(todolist)
+            return Response(serializer.data,status=STATUS_200)
+        except:
+            return Response({'response':'error'}, status=STATUS_400)
+        
+    def delete(self, request):
+        pk = request.GET.get('pk')
+        todolist = self.validate_params(pk)
+        if isinstance(todolist, dict):
+            return Response({'response':todolist.get('response')},status=todolist.get('status'))
+        todolist.delete()
+        return Response({'response':'the element has been deleted'},status=STATUS_200)
 
 class RestrictedView(APIView):
     permission_classes = (IsAuthenticated, )

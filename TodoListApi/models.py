@@ -34,10 +34,10 @@ class LogUser(models.Model):
     modified = models.DateTimeField(auto_now=True, editable=False)
 
     def __str__(self):
-        return self.id
+        return str("LogUser "+self.id)
 
     def __unicode__(self):
-        return self.id
+        return str("LogUser "+self.id)
 
     class Meta:
         verbose_name_plural = "LogUsers"
@@ -45,17 +45,31 @@ class LogUser(models.Model):
 class TodoList(models.Model):
     user = models.ForeignKey('UserTodo', related_name='usertodolist', verbose_name=_('User'), null=True)
     title = models.CharField(_('Title'),max_length=100)
-    image = models.ImageField(_('Image'), null=True, upload_to='media/')
+    image = models.ImageField(_('Image'), blank=True,null=True,upload_to='media/')
     description = RichTextUploadingField(_('Description'),blank=False, null=False)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     modified = models.DateTimeField(auto_now=True, editable=False)
     
     def __str__(self):
-        return self.id
+        return str(self.id)
 
     def __unicode__(self):
-        return self.id
+        return str(self.id)
 
     class Meta:
         verbose_name_plural = "TodoLists"
+
+class ListContent(models.Model):
+    todolist = models.ForeignKey('TodoList', related_name='todolistcontent', verbose_name=_('TodoList'), null=True)
+    description= models.CharField(_('Description'),max_length=255)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    modified = models.DateTimeField(auto_now=True, editable=False)
     
+    def __str__(self):
+        return str(self.id)
+
+    def __unicode__(self):
+        return str(self.id)
+
+    class Meta:
+        verbose_name_plural = "ListsContent"
