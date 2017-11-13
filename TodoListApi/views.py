@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.core.mail import EmailMessage
+from django.core.mail import send_mail
 from django.contrib.auth.models import User
 from django.shortcuts import render
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -18,9 +20,8 @@ import datetime
 import time
 import random
 import re
+import string
 from rest_framework_jwt.settings import api_settings
-
-
 
 STATUS_200 = status.HTTP_200_OK
 STATUS_201 = status.HTTP_201_CREATED
@@ -30,7 +31,9 @@ STATUS_400 = status.HTTP_400_BAD_REQUEST
 STATUS_401 = status.HTTP_401_UNAUTHORIZED
 STATUS_404 = status.HTTP_404_NOT_FOUND
 STATUS_500 = status.HTTP_500_INTERNAL_SERVER_ERROR
-# Create your views here.
+
+def pass_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
 class UserList(APIView):
     permission_classes = (permissions.AllowAny,)
     def get(self, request,):
@@ -107,12 +110,44 @@ class LoginView(APIView):
             data['response'] = 'the user password is incorrect'
             return Response(data, status=STATUS_401)
 
-class RecoverAndChangePasswordview(APIView):
+class RecoverAndChangePasswordView(APIView):
+    permission_classes = (permissions.AllowAny,)
+    def get_object(self,email):
+        try:
+            return User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise Http404
+            
     def post(self, request,):
-        return Response({})
+        user = self.get_object(request.data.get('email'))
+        userdata = UserTodo.objects.get(user=user)
+        new_password = pass_generator(6)
+        userdata.user.set_password(new_password)
+        print(new_password)
+        send_mail('Hello '+str(userdata.user.username),'this the your new password '+str(new_password), 'Admin@TodoList.com', [str(userdata.user.email)], fail_silently=False)
+        return Response({'response':'the new password has been sent please check your email'}, status=STATUS_200)
 
     def put(self, request,):
-        return Response({})
+        data = {}
+        pwd_old = request.data.get('password_old')
+        pwd_new = request.data.get('password_new')
+        user = self.get_object(request.data.get('email'))
+        userdata = UserTodo.objects.get(user=user)
+        if user.check_password(pwd_old):
+            userdata.user.set_password(pwd_new)
+            userdata.user.save()
+            data['pk'] = userdata.pk
+            data['first_name']= user.first_name
+            data['last_name']= user.last_name
+            data['username'] = user.username
+            data['email'] = user.email
+            data['type'] = str(userdata.type_user)
+            data['response']='the password has been changed'
+            return Response(data)
+        else:
+            data['response']='the password you entered is incorrect'
+            return Response(data, status=STATUS_400)
+
 class RestrictedView(APIView):
     permission_classes = (IsAuthenticated, )
     authentication_classes = (JSONWebTokenAuthentication, )

@@ -10,6 +10,7 @@ urlpatterns = [
     url(r'^users/$', views.UserList.as_view()),
     url(r'^users/(?P<pk>[0-9]+)/$', views.UserDetail.as_view()),
     url(r'^register/$', views.RegisterView.as_view()),
+    url(r'^recoverchange/$', views.RecoverAndChangePasswordView.as_view()),
     #url(r'^login/', obtain_jwt_token),
     url(r'^login/', views.LoginView.as_view()),
     url(r'^logout/', refresh_jwt_token),
