@@ -87,8 +87,13 @@ class LoginView(APIView):
         data={}
         jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
         jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
+        email = request.data.get('email')
+        username = request.data.get('username')
         try:
-            user = User.objects.get(email=request.data.get('email'))
+            if(email!="None"):
+                user = User.objects.get(email=email)
+            if(username!="None"):
+                user = User.objects.get(username=username)
         except User.DoesNotExist:
             return Response({'response':'The user not exist'},status=STATUS_404)
         payload = jwt_payload_handler(user)
@@ -156,9 +161,15 @@ class ListContentView(APIView):
          return Response(serializer.data)
 
 class TodoListView(APIView):
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (IsAuthenticated, )
+    authentication_classes = (JSONWebTokenAuthentication, )
     def get(self, request):
-        todolist = TodoList.objects.all()
+        try:
+            user = User.objects.get(pk=request.user.id)
+        except User.DoesNotExist:
+            return Response({'response':'The user not exist'},status=STATUS_404)
+        userdata = UserTodo.objects.get(user=user)
+        todolist = TodoList.objects.filter(user=userdata)
         serializer = TodoListSerializer(todolist,many=True)
         return Response(serializer.data)
 
