@@ -238,6 +238,8 @@ class TodoListDetailView(APIView):
                 listdata = ListContent.objects.get(pk=listcontent[x].get('id'))
                 if(listdata!=None):
                     listdata.description=listcontent[x].get('description')
+                    if(listcontent[x].get('correct')!="None"):
+                        listdata.correct = listcontent[x].get('correct')
                     listdata.modified= time
                     listdata.save()
             serializer= TodoListSerializer(todolist)
