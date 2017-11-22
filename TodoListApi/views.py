@@ -59,7 +59,8 @@ class RegisterView(APIView):
     def post(self, request):
         data ={}
         find_user = User.objects.filter(email=request.data.get('email'))
-        if (len(find_user)== 0):
+        find_username = User.objects.filter(username=request.data.get('username'))
+        if (len(find_user)== 0 and len(find_username)==0):
             user = User.objects.create_user(username=request.data.get('username'), email=request.data.get('email'),
                                             password=request.data.get('password'), first_name=request.data.get('first_name'),
                                             last_name=request.data.get('last_name'))
@@ -71,13 +72,13 @@ class RegisterView(APIView):
             data['username'] = user.username
             data['email'] = user.email
             data['type'] = str(userdata.type_user)
-            data['response']= 'the creation of account has been successfully'
+            data['response']= 'the creation of your account has been successful'
         else:
             userdata = UserTodo.objects.filter(user=find_user)
-            data['username'] = find_user[0].username
-            data['email'] = find_user[0].email
+            data['username'] = userdata[0].user.username
+            data['email'] = userdata[0].user.email
             data['type'] = str(userdata[0].type_user)
-            data['response'] = 'the user has already been registered'
+            data['response'] = 'has already been registered'
             return Response(data, status=STATUS_400)
         return Response(data, status=STATUS_201)
 
@@ -88,14 +89,10 @@ class LoginView(APIView):
         jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
         jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
         email = request.data.get('email')
-        username = request.data.get('username')
         try:
-            if(email!="None"):
-                user = User.objects.get(email=email)
-            if(username!="None"):
-                user = User.objects.get(username=username)
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({'response':'The user not exist'},status=STATUS_404)
+            return Response({'response':'The email dont have registration in the system'},status=STATUS_404)
         payload = jwt_payload_handler(user)
         token = jwt_encode_handler(payload)
         userdata = UserTodo.objects.get(user=user)
@@ -129,6 +126,7 @@ class RecoverAndChangePasswordView(APIView):
         new_password = pass_generator(6)
         userdata.user.set_password(new_password)
         print(new_password)
+        userdata.user.save()
         send_mail('Hello '+str(userdata.user.username),'this the your new password '+str(new_password), 'Admin@TodoList.com', [str(userdata.user.email)], fail_silently=False)
         return Response({'response':'the new password has been sent please check your email'}, status=STATUS_200)
 
@@ -169,7 +167,7 @@ class TodoListView(APIView):
         except User.DoesNotExist:
             return Response({'response':'The user not exist'},status=STATUS_404)
         userdata = UserTodo.objects.get(user=user)
-        todolist = TodoList.objects.filter(user=userdata)
+        todolist = TodoList.objects.filter(user=userdata).order_by('id')
         serializer = TodoListSerializer(todolist,many=True)
         return Response(serializer.data)
 
@@ -209,10 +207,15 @@ class TodoListDetailView(APIView):
             userdata = UserTodo.objects.get(user=user)
             todolist = TodoList.objects.create(user=userdata,title=title,description=description)
             todolist.save()
-            for x in range(len(listcontent)):
-                listdata = listcontent[x]
-                content = ListContent.objects.create(todolist=todolist,description=listdata)
-                content.save()
+            if(listcontent!=None):
+                for x in range(len(listcontent)):
+                    listdescription = listcontent[x].get('description')
+                    if(listcontent[x].get('correct')!="None"):
+                        listcorrect = listcontent[x].get('correct')
+                    else:
+                        listcorrect= False
+                    listdata = ListContent.objects.create(todolist=todolist,description=listdescription,correct=listcorrect)
+                    listdata.save()
             serializer= TodoListSerializer(todolist)
             return Response(serializer.data, status=STATUS_201)
         except:
@@ -234,14 +237,15 @@ class TodoListDetailView(APIView):
                 todolist.description = description
             todolist.modified = time
             todolist.save()
-            for x in range(len(listcontent)):
-                listdata = ListContent.objects.get(pk=listcontent[x].get('id'))
-                if(listdata!=None):
-                    listdata.description=listcontent[x].get('description')
-                    if(listcontent[x].get('correct')!="None"):
-                        listdata.correct = listcontent[x].get('correct')
-                    listdata.modified= time
-                    listdata.save()
+            if(listcontent!=None):
+                for x in range(len(listcontent)):
+                    listdata = ListContent.objects.get(pk=listcontent[x].get('id'))
+                    if(listdata!=None):
+                        listdata.description=listcontent[x].get('description')
+                        if(listcontent[x].get('correct')!="None"):
+                            listdata.correct = listcontent[x].get('correct')
+                        listdata.modified= time
+                        listdata.save()
             serializer= TodoListSerializer(todolist)
             return Response(serializer.data,status=STATUS_200)
         except:

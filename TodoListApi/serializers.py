@@ -26,10 +26,10 @@ class ListContentSerializer(serializers.ModelSerializer):
 class TodoListSerializer(serializers.ModelSerializer):
     user = UserTodoSerializer(read_only=True)
     #image = serializers.SerializerMethodField('get_image_url')
-    todolistcontent = ListContentSerializer(many=True)
+    listcontent = ListContentSerializer(many=True)
     class Meta:
         model = TodoList
-        fields = ('id','user','title','description','todolistcontent','image',)
+        fields = ('id','user','title','description','listcontent','image',)
 
     def get_image_url(self, sliderimage):
         request = self.context.get('request')

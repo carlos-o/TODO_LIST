@@ -60,7 +60,7 @@ class TodoList(models.Model):
         verbose_name_plural = "TodoLists"
 
 class ListContent(models.Model):
-    todolist = models.ForeignKey('TodoList', related_name='todolistcontent', verbose_name=_('TodoList'), null=True)
+    todolist = models.ForeignKey('TodoList', related_name='listcontent', verbose_name=_('TodoList'), null=True)
     description= models.CharField(_('Description'),max_length=255)
     correct = models.BooleanField(_('Correct'), default=False, help_text=_('Is a correct answer?'))
     created = models.DateTimeField(auto_now_add=True, editable=False)
