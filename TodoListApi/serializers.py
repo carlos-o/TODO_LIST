@@ -29,7 +29,7 @@ class TodoListSerializer(serializers.ModelSerializer):
     listcontent = ListContentSerializer(many=True)
     class Meta:
         model = TodoList
-        fields = ('id','user','title','description','listcontent','image',)
+        fields = ('id','user','title','description','listcontent','image','modified')
 
     def get_image_url(self, sliderimage):
         request = self.context.get('request')

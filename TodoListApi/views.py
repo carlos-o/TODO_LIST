@@ -21,6 +21,7 @@ import time
 import random
 import re
 import string
+import json
 from rest_framework_jwt.settings import api_settings
 
 STATUS_200 = status.HTTP_200_OK
@@ -32,7 +33,7 @@ STATUS_401 = status.HTTP_401_UNAUTHORIZED
 STATUS_404 = status.HTTP_404_NOT_FOUND
 STATUS_500 = status.HTTP_500_INTERNAL_SERVER_ERROR
 
-def pass_generator(size=6, chars=string.ascii_uppercase + string.digits):
+def pass_generator(size=8, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 class UserList(APIView):
     permission_classes = (permissions.AllowAny,)
@@ -158,6 +159,33 @@ class ListContentView(APIView):
          serializer = ListContentSerializer(lists, many=True)
          return Response(serializer.data)
 
+class ListContentDetail(APIView):
+    permission_classes = (IsAuthenticated, )
+    authentication_classes = (JSONWebTokenAuthentication, )
+    def get_object(self, pk):
+        try:
+            return ListContent.objects.get(pk=pk)
+        except ListContent.DoesNotExist:
+            raise Http404
+    
+    def validate_params(self, list_pk):
+        if(list_pk!=None):
+            if(re.match(r"[0-9]+$",list_pk)):
+                listid = self.get_object(list_pk)
+                return listid
+            else:
+                return ({'response':'pk it can only be numbers','status':STATUS_400})
+        else:
+            return ({'response':'I need param for url','status':STATUS_202})
+
+    def delete(self,request):
+        pk = request.GET.get('pk')
+        listdata = self.validate_params(pk)
+        if isinstance(listdata, dict):
+            return Response({'response':listdata.get('response')},status=listdata.get('status'))
+        listdata.delete()
+        return Response({'response':'The list of note has been deleted'},status=STATUS_200)
+
 class TodoListView(APIView):
     permission_classes = (IsAuthenticated, )
     authentication_classes = (JSONWebTokenAuthentication, )
@@ -167,7 +195,7 @@ class TodoListView(APIView):
         except User.DoesNotExist:
             return Response({'response':'The user not exist'},status=STATUS_404)
         userdata = UserTodo.objects.get(user=user)
-        todolist = TodoList.objects.filter(user=userdata).order_by('id')
+        todolist = TodoList.objects.filter(user=userdata).order_by('-id')
         serializer = TodoListSerializer(todolist,many=True)
         return Response(serializer.data)
 
@@ -202,16 +230,18 @@ class TodoListDetailView(APIView):
         title = request.data.get('title')
         description =request.data.get('description')
         listcontent = request.data.get('listcontent')
-        user = User.objects.get(pk=request.user.id)
+        if(listcontent!=None):
+            listcontentjson =json.loads(listcontent) 
         try:
+            user = User.objects.get(pk=request.user.id)
             userdata = UserTodo.objects.get(user=user)
             todolist = TodoList.objects.create(user=userdata,title=title,description=description)
             todolist.save()
             if(listcontent!=None):
-                for x in range(len(listcontent)):
-                    listdescription = listcontent[x].get('description')
-                    if(listcontent[x].get('correct')!="None"):
-                        listcorrect = listcontent[x].get('correct')
+                for x in range(len(listcontentjson)):
+                    listdescription = listcontentjson[x].get('description')
+                    if(listcontentjson[x].get('correct')!="None"):
+                        listcorrect = listcontentjson[x].get('correct')
                     else:
                         listcorrect= False
                     listdata = ListContent.objects.create(todolist=todolist,description=listdescription,correct=listcorrect)
@@ -229,23 +259,36 @@ class TodoListDetailView(APIView):
         title = request.data.get('title')
         description = request.data.get('description')
         listcontent = request.data.get('listcontent')
+        if(listcontent!=None):
+            listcontentjson =json.loads(listcontent)
         try:
             time = datetime.datetime.now()
-            if(title==None or title==""):
+            if(title!=None):
                 todolist.title=title
-            if(description==None or description==""):
+            if(description!=None):
                 todolist.description = description
             todolist.modified = time
             todolist.save()
-            if(listcontent!=None):
-                for x in range(len(listcontent)):
-                    listdata = ListContent.objects.get(pk=listcontent[x].get('id'))
+            if(listcontent!=None):#listcontent
+                for x in range(len(listcontentjson)):
+                    try:
+                        listdata = ListContent.objects.get(pk=listcontentjson[x].get('id'))    
+                    except ListContent.DoesNotExist:
+                        listdata=None
                     if(listdata!=None):
-                        listdata.description=listcontent[x].get('description')
-                        if(listcontent[x].get('correct')!="None"):
-                            listdata.correct = listcontent[x].get('correct')
+                        listdata.description=listcontentjson[x].get('description')
+                        if(listcontentjson[x].get('correct')!="None"):
+                            listdata.correct = listcontentjson[x].get('correct')
                         listdata.modified= time
                         listdata.save()
+                    if(listdata==None):
+                        listdescription = listcontentjson[x].get('description')
+                        if(listcontentjson[x].get('correct')!="None"):
+                            listcorrect = listcontentjson[x].get('correct')
+                        else:
+                            listcorrect= False
+                        listdataedit = ListContent.objects.create(todolist=todolist,description=listdescription,correct=listcorrect)
+                        listdataedit.save()
             serializer= TodoListSerializer(todolist)
             return Response(serializer.data,status=STATUS_200)
         except:
@@ -257,7 +300,7 @@ class TodoListDetailView(APIView):
         if isinstance(todolist, dict):
             return Response({'response':todolist.get('response')},status=todolist.get('status'))
         todolist.delete()
-        return Response({'response':'the element has been deleted'},status=STATUS_200)
+        return Response({'response':'The note has been deleted'},status=STATUS_200)
 
 class RestrictedView(APIView):
     permission_classes = (IsAuthenticated, )

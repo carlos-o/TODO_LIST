@@ -17,6 +17,7 @@ urlpatterns = [
     url(r'^todolists/', views.TodoListView.as_view()),
     url(r'^todolist/', views.TodoListDetailView.as_view()),
     url(r'^listcontent/', views.ListContentView.as_view()),
+    url(r'^listdetail/', views.ListContentDetail.as_view()),
     url(r'^restricted/$', views.RestrictedView.as_view()),
 
 ]
